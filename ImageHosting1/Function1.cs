@@ -13,87 +13,120 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using Microsoft.Net.Http.Headers;
 using System.Net.Http;
+using System.Security.Claims;
 
 namespace AzFunctions
 {
     public static class UploadBlobHttpTriggerFunc
     {
+        private static readonly string CONTAINER_NAME = "images";
+        private static readonly object base_url = "/api/image/";
+
         [FunctionName("UploadBlobHttpTriggerFunc")]
         public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "image/{image_id?}")] HttpRequest req,
+             string image_id,
+             ClaimsPrincipal principal,
             ILogger log, ExecutionContext context)
         {
-            try { 
-            if (req.Method == "GET")
+            try
             {
-                    switch(req.QueryString.Value)
+                if (req.Method == "GET")
+                {
+                    if (null != principal)
                     {
-                        case "": 
-                            {
-                                var content = "<html><body><form method='POST' target='http://localhost:7071/api/UploadBlobHttpTriggerFunc' enctype='multipart/form-data'><input type='text' name='t1' id='t1' value='123'/><input type='file' name='f1' id='f1'/><input type='submit'/></form></body></html>";
-                                var cr = new ContentResult()
-                                {
-                                    Content = content,
-                                    ContentType = "text/html",
-                                };
-
-                                return cr;
-                            }
-                        case "?image": 
-                            {
-                                // list all images?
-                                break; 
-                            }
-                        case "?image=8c54c2e1-a160-4dff-9f7f-d9d4fd959c6d": 
-                            {
-                                CloudStorageAccount storageAccount1 = GetCloudStorageAccount(log, context);
-                                CloudBlobClient blobClient1 = storageAccount1.CreateCloudBlobClient();
-                                CloudBlobContainer container1 = blobClient1.GetContainerReference("dummy-messages");
-
-                                string randomStr1 = "8c54c2e1-a160-4dff-9f7f-d9d4fd959c6d";
-                                CloudBlockBlob blob1 = container1.GetBlockBlobReference(randomStr1);
-                                await blob1.FetchAttributesAsync();
-                                long blob_size = blob1.Properties.Length;
-                                byte[] image_bytes2 = new byte[blob_size];
-                                await blob1.DownloadToByteArrayAsync(image_bytes2, 0);
-
-                                var fr = new FileContentResult(image_bytes2, "image/jpeg");
-
-                                return fr;
-                            }
-
+                        foreach (Claim claim in principal.Claims)
+                        {
+                            log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value ); // TODO: check principal corresponds to SC AAD
+                        }
                     }
+
+                    if (image_id is null)
+                    {
+                        var content1 = $"<html><body><form method='POST' target='{base_url}' enctype='multipart/form-data'><input type='file' name='f1' id='f1'/><input type='submit'/></form></body></html>";
+                        var cr1 = new ContentResult()
+                        {
+                            Content = content1,
+                            ContentType = "text/html",
+                        };
+
+                        return cr1;
+                    }
+                    else if (image_id == "all")
+                    {
+                        // list all images?
+                        return new OkResult();
+                    }
+                    else
+                    {
+                        byte[] image_bytes2 = await LoadImageAsync(image_id, log, context);
+
+                        var fr = new FileContentResult(image_bytes2, "image/jpeg"); // TODO: preserve mime type
+
+                        return fr;
+                    }
+                }
+
+                log.LogInformation($"C# Http trigger function executed at: {DateTime.Now}");
+                CreateContainerIfNotExists(log, context);
+
+                CloudStorageAccount storageAccount = GetCloudStorageAccount(log, context);
+                CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+                CloudBlobContainer container = blobClient.GetContainerReference(CONTAINER_NAME);
+
+                string new_image_id = CreateImageId();
+                CloudBlockBlob blob = container.GetBlockBlobReference(new_image_id);
+
+                var f = req.Form.Files[0];
+                byte[] img_bytes1 = await GetByteArrayFromImageAsync(f);
+
+                await blob.UploadFromByteArrayAsync(img_bytes1, 0, img_bytes1.Length);
+                await blob.SetPropertiesAsync();
+
+                log.LogInformation($"Bolb {new_image_id} is uploaded to container {container.Name}");
+
+                string content = $"<html><body><a href='{base_url}{new_image_id}'><img src='{base_url}{new_image_id}'/></a></body></html>";
+                var cr = new ContentResult()
+                {
+                    Content = content,
+                    ContentType = "text/html",
+                };
+
+                return cr;
+
             }
-
-            log.LogInformation($"C# Http trigger function executed at: {DateTime.Now}");
-            CreateContainerIfNotExists(log, context);
-
-            CloudStorageAccount storageAccount = GetCloudStorageAccount(log, context);
-            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-            CloudBlobContainer container = blobClient.GetContainerReference("dummy-messages");
-
-            string randomStr = Guid.NewGuid().ToString();
-            CloudBlockBlob blob = container.GetBlockBlobReference(randomStr);
-
-            var f = req.Form.Files[0];
-            byte[] img_bytes1 = await GetByteArrayFromImageAsync(f);
-
-            await blob.UploadFromByteArrayAsync(img_bytes1, 0, img_bytes1.Length);
-            await blob.SetPropertiesAsync();
-
-            log.LogInformation($"Bolb {randomStr} is uploaded to container {container.Name}");
-
-            return new OkObjectResult("UploadBlobHttpTrigger function executed successfully!!"); // return url
-
-        }
             catch (Exception e)
             {
                 log.LogError(e.Message);
                 return new OkObjectResult(e.Message); // return url
             }
 
-}
+        }
 
+        private static async Task<byte[]> LoadImageAsync(string image_id, ILogger log, ExecutionContext context)
+        {
+            CloudStorageAccount storageAccount1 = GetCloudStorageAccount(log, context);
+            CloudBlobClient blobClient1 = storageAccount1.CreateCloudBlobClient();
+            CloudBlobContainer container1 = blobClient1.GetContainerReference(CONTAINER_NAME);
+            CloudBlockBlob blob1 = container1.GetBlockBlobReference(image_id);
+            await blob1.FetchAttributesAsync();
+            long blob_size = blob1.Properties.Length;
+            byte[] image_bytes2 = new byte[blob_size];
+            await blob1.DownloadToByteArrayAsync(image_bytes2, 0);
+            return image_bytes2;
+        }
+
+        private static string CreateImageId()
+        {
+            Random rnd = new Random();
+            string result = "";
+            string values =  "0123456789abcdefghijklmoprstuvwxyzABCDEFGHIJKLMNOPQSTUVWXYZ";
+            for (int i = 0; i < 7; i++)
+            {
+                result += values[rnd.Next(0, 62)];
+            }
+            return result;
+        }
 
         private static async Task<byte[]> GetByteArrayFromImageAsync(IFormFile file)
         {
@@ -108,7 +141,7 @@ namespace AzFunctions
         {
             CloudStorageAccount storageAccount = GetCloudStorageAccount(logger, executionContext);
             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-            string[] containers = new string[] { "dummy-messages" };
+            string[] containers = new string[] { CONTAINER_NAME };
             foreach (var item in containers)
             {
                 CloudBlobContainer blobContainer = blobClient.GetContainerReference(item);
@@ -122,15 +155,8 @@ namespace AzFunctions
                             .SetBasePath(executionContext.FunctionAppDirectory)
                             .AddJsonFile("local.settings.json", true, true)
                             .AddEnvironmentVariables().Build();
-            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["CloudStorageAccount"]);
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(config["CloudStorageAccount"]); // TODO: integrate KV
             return storageAccount;
-        }
-        private static void LoadStreamWithJson(Stream ms, object obj)
-        {
-            StreamWriter writer = new StreamWriter(ms);
-            writer.Write(obj);
-            writer.Flush();
-            ms.Position = 0;
         }
     }
 }
