@@ -33,7 +33,7 @@ namespace AzFunctions
                     {
                         foreach (Claim claim in principal.Claims)
                         {
-                            log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value ); // TODO: check principal corresponds to SC AAD
+                            log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value); // TODO: check principal corresponds to SC AAD
                         }
                     }
 
@@ -63,23 +63,7 @@ namespace AzFunctions
                     }
                 }
 
-                log.LogInformation($"C# Http trigger function executed at: {DateTime.Now}");
-                CreateContainerIfNotExists(log, context);
-
-                CloudStorageAccount storageAccount = GetCloudStorageAccount(log, context);
-                CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-                CloudBlobContainer container = blobClient.GetContainerReference(CONTAINER_NAME);
-
-                string new_image_id = CreateImageId();
-                CloudBlockBlob blob = container.GetBlockBlobReference(new_image_id);
-
-                var f = req.Form.Files[0];
-                byte[] img_bytes1 = await GetByteArrayFromImageAsync(f);
-
-                await blob.UploadFromByteArrayAsync(img_bytes1, 0, img_bytes1.Length);
-                await blob.SetPropertiesAsync();
-
-                log.LogInformation($"Bolb {new_image_id} is uploaded to container {container.Name}");
+                string new_image_id = await SaveImage(req, log, context);
 
                 string content = $"<html><body><a href='{base_url}{new_image_id}'><img src='{base_url}{new_image_id}'/></a></body></html>";
                 var cr = new ContentResult()
@@ -97,6 +81,28 @@ namespace AzFunctions
                 return new OkObjectResult(e.Message);
             }
 
+        }
+
+        private static async Task<string> SaveImage(HttpRequest req, ILogger log, ExecutionContext context)
+        {
+            log.LogInformation($"C# Http trigger function executed at: {DateTime.Now}");
+            CreateContainerIfNotExists(log, context);
+
+            CloudStorageAccount storageAccount = GetCloudStorageAccount(log, context);
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+            CloudBlobContainer container = blobClient.GetContainerReference(CONTAINER_NAME);
+
+            string new_image_id = CreateImageId();
+            CloudBlockBlob blob = container.GetBlockBlobReference(new_image_id);
+
+            var f = req.Form.Files[0];
+            byte[] img_bytes1 = await GetByteArrayFromImageAsync(f);
+
+            await blob.UploadFromByteArrayAsync(img_bytes1, 0, img_bytes1.Length);
+            await blob.SetPropertiesAsync();
+
+            log.LogInformation($"Bolb {new_image_id} is uploaded to container {container.Name}");
+            return new_image_id;
         }
 
         private static async Task<byte[]> LoadImageAsync(string image_id, ILogger log, ExecutionContext context)
