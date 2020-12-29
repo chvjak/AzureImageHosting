@@ -6,13 +6,9 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.Net.Http.Headers;
-using System.Net.Http;
 using System.Security.Claims;
 
 namespace AzFunctions
@@ -98,7 +94,7 @@ namespace AzFunctions
             catch (Exception e)
             {
                 log.LogError(e.Message);
-                return new OkObjectResult(e.Message); // return url
+                return new OkObjectResult(e.Message);
             }
 
         }
