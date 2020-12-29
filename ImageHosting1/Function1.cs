@@ -116,7 +116,7 @@ namespace AzFunctions
         {
             Random rnd = new Random();
             string result = "";
-            string values =  "0123456789abcdefghijklmoprstuvwxyzABCDEFGHIJKLMNOPQSTUVWXYZ";
+            string values =  "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
             for (int i = 0; i < 7; i++)
             {
                 result += values[rnd.Next(0, 62)];
