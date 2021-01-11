@@ -40,7 +40,8 @@ namespace AzFunctions
 
                     if (image_id is null)
                     {
-                        var content1 = $"<html><body><form method='POST' target='{base_url}' enctype='multipart/form-data'><input type='file' name='f1' id='f1'/><input type='submit'/></form></body></html>";
+                        var content1 = File.ReadAllText(@"1.html");
+
                         var cr1 = new ContentResult()
                         {
                             Content = content1,
@@ -66,13 +67,11 @@ namespace AzFunctions
 
                 string new_image_id = await SaveImage(req, log, context);
 
-                //string content = $"<html><body><a href='{base_url}{new_image_id}'><img src='{base_url}{new_image_id}'/></a></body></html>";
                 string content = $"{base_url}{new_image_id}";
                 var cr = new ContentResult()
                 {
                     Content = content,
                     ContentType = "text/plain",
-                    //ContentType = "text/html",
                 };
 
                 req.HttpContext.Response.Headers["Access-Control-Allow-Origin"] = "*"; //DEBUG

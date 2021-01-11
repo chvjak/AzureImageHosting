@@ -1,82 +1,67 @@
 <html>
 <head>
-    <script>
-        TARGET_URL = "http://localhost:7071/api/image/";
-
-        document.onpaste = function (pasteEvent) {
-            // consider the first item (can be easily extended for multiple items)
-            var item = pasteEvent.clipboardData.items[0];
-
-            if (item.type.indexOf("image") === 0) {
-                var file = item.getAsFile();
-
-                filename = "f1.jpg";
-                xhr.open("POST", TARGET_URL, {filename: filename, filetype: file.type});
-                var formData = new FormData();
-                formData.append("pastedFile", file);
-                xhr.send(formData);
-            }
-        }
-
-        var reader = new FileReader();
-        reader.onload = function (event) {
-            document.getElementById("container").src = event.target.result;
-        };
-
-        var xhr = new XMLHttpRequest();
-
-        xhr.onload = function () {
-            if (xhr.status === 200) {
-                setImageUrl(xhr.responseText);
-            } else {
-                alert("Error! Upload failed" + xhr.responseText);
-            }
-        }
-    </script>
     <style>
         #drop-area {
             border: 2px dashed #ccc;
             border-radius: 20px;
             width: 480px;
             font-family: sans-serif;
-            margin: 100px auto;
+            margin: 50px auto;
             padding: 20px;
+            text-align: center;
+        }
+
+        .centered {
+            font-family: sans-serif;
+            text-align: center;
+        }
+
+        body {
+            background-color: #3c424b;
+            color: white;
         }
     </style>
-</head>
-<body>
-
-    <form method='POST' target='{base_url}' enctype='multipart/form-data'><input type='file' name='f1' id='f1' /><input type='submit' /></form>
-    <p>Paste your image here..</p>
-    <div id="drop-area">
-        <p>Or Drag&Drop here..</p>
-    </div>
-    <img id="container" /><br>
-    <input type="text" id="raw_img_url">
-    <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('raw_img_url').value);"><br>
-    <input type="text" id="makrdown_img_url">
-    <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('makrdown_img_url').value);"><br>
-
-
     <script>
-        var dropArea = document.getElementById('drop-area');
+        TARGET_URL = "http://localhost:7071/api/image/";
+        document.addEventListener('DOMContentLoaded', function () {
+            // paste
+            document.onpaste = function (pasteEvent) {
+                var item = pasteEvent.clipboardData.items[0];
 
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => { dropArea.addEventListener(eventName, preventDefaults, false) });
+                if (item.type.indexOf("image") === 0) {
+                    var file = item.getAsFile();
 
-        dropArea.addEventListener('dragenter', preventDefaults, false)
-        dropArea.addEventListener('dragover', preventDefaults, false)
-        dropArea.addEventListener('dragleave', preventDefaults, false)
-        dropArea.addEventListener('drop', preventDefaults, false)
+                    uploadFile(file);
+                }
+            }
+
+            // select from drive
+            document.getElementById('f1').onchange = function (event) {
+                var fileList = event.target.files;
+                [...fileList].forEach(uploadFile)
+            }
+
+            // drop
+            var dropArea = document.getElementById('drop-area');
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => { dropArea.addEventListener(eventName, preventDefaults, false) });
+
+            dropArea.addEventListener('dragenter', preventDefaults, false)
+            dropArea.addEventListener('dragover', preventDefaults, false)
+            dropArea.addEventListener('dragleave', preventDefaults, false)
+            dropArea.addEventListener('drop', preventDefaults, false)
+
+            dropArea.addEventListener('drop', handleDrop, false);
+
+        }, false);
+
 
         function preventDefaults(e) {
             e.preventDefault()
             e.stopPropagation()
         }
 
-        dropArea.addEventListener('drop', handleDrop, false);
-
         function handleDrop(e) {
-            //Array.from(e.dataTransfer.files).forEach(uploadFile)
             [...e.dataTransfer.files].forEach(uploadFile)
         }
 
@@ -95,13 +80,31 @@
             var response = await fetch(url, {
                 method: 'POST',
                 body: formData
-            });
+            }).catch(() => alert("Error uploading file."));
 
             var image_url = await response.text();
             setImageUrl(image_url);
         }
     </script>
+</head>
+<body>
+    <div id="drop-area">
+        <p>Drag your image here..</p>
+    </div>
 
+    <p class="centered">-- or --</p>
+    <div class="centered">Choose from your drive <input type='file' name='f1' id='f1' /></div>
+
+    <p class="centered">-- or --</p>
+    <p class="centered">Paste image</p>
+
+    <div class="centered">
+        <img id="container" class="centered" /><br>
+        <input type="text" id="raw_img_url" size="50">
+        <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('raw_img_url').value);"><br>
+        <input type="text" id="makrdown_img_url" size="50">
+        <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('makrdown_img_url').value);"><br>
+    </div>
 </body>
 </html>
 
