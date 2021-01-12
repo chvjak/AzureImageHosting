@@ -17,7 +17,8 @@ namespace AzFunctions
     public static class UploadBlobHttpTriggerFunc
     {
         private static readonly string CONTAINER_NAME = "images";
-        private static readonly object base_url = "/api/image/";
+        // private static readonly object base_url = "/api/image/";
+        private static readonly object base_url = "http://localhost:7071/api/image/"; // DEBUG
 
         [FunctionName("UploadBlobHttpTriggerFunc")]
         public static async Task<IActionResult> Run(
@@ -45,7 +46,8 @@ namespace AzFunctions
                 {
                     if (image_id is null)
                     {
-                        var content1 = $"<html><body><form method='POST' target='{base_url}' enctype='multipart/form-data'><input type='file' name='f1' id='f1'/><input type='submit'/></form></body></html>";
+                        var content1 = File.ReadAllText(@"1.html");
+
                         var cr1 = new ContentResult()
                         {
                             Content = content1,
@@ -71,13 +73,14 @@ namespace AzFunctions
 
                 string new_image_id = await SaveImage(req, log, context);
 
-                string content = $"<html><body><a href='{base_url}{new_image_id}'><img src='{base_url}{new_image_id}'/></a></body></html>";
+                string content = $"{base_url}{new_image_id}";
                 var cr = new ContentResult()
                 {
                     Content = content,
-                    ContentType = "text/html",
+                    ContentType = "text/plain",
                 };
 
+                req.HttpContext.Response.Headers["Access-Control-Allow-Origin"] = "*"; //DEBUG
                 return cr;
 
             }
@@ -102,6 +105,8 @@ namespace AzFunctions
             CloudBlockBlob blob = container.GetBlockBlobReference(new_image_id);
 
             var f = req.Form.Files[0];
+            // TODO: validate file size
+            // TODO: validate mime type
             byte[] img_bytes1 = await GetByteArrayFromImageAsync(f);
 
             await blob.UploadFromByteArrayAsync(img_bytes1, 0, img_bytes1.Length);
@@ -128,6 +133,8 @@ namespace AzFunctions
         {
             Random rnd = new Random();
             string result = "";
+            // char[] az = Enumerable.Range('a', 'z' - 'a' + 1).Select(i => (Char)i).ToArray();
+            // https://stackoverflow.com/questions/314466/generating-an-array-of-letters-in-the-alphabet
             string values =  "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
             for (int i = 0; i < 7; i++)
             {
