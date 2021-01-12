@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System.Security.Claims;
+using System.Linq;
 
 namespace AzFunctions
 {
@@ -20,23 +21,28 @@ namespace AzFunctions
 
         [FunctionName("UploadBlobHttpTriggerFunc")]
         public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = "image/{image_id?}")] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = "image/{image_id?}")] HttpRequest req,
              string image_id,
              ClaimsPrincipal principal,
             ILogger log, ExecutionContext context)
         {
             try
             {
+                if (null != principal)
+                {
+                    foreach (Claim claim in principal.Claims)
+                    {
+                        log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value); // TODO: check principal corresponds to SC AAD
+                    }
+                    
+                    // seems that this is an overkill, authenticated applications are single-tenant, i.e accessible for users in same tenant
+                    string tenant_id = principal.Claims.Where(x => x.Type == "http://schemas.microsoft.com/identity/claims/tenantid").Select(x => x.Value).FirstOrDefault();
+                    if (tenant_id != "aa81b43f-3969-4fd4-80c9-84c411508d82")
+                        return new ObjectResult("This application is restricted to specfific tenant.");
+                }
+
                 if (req.Method == "GET")
                 {
-                    if (null != principal)
-                    {
-                        foreach (Claim claim in principal.Claims)
-                        {
-                            log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value); // TODO: check principal corresponds to SC AAD
-                        }
-                    }
-
                     if (image_id is null)
                     {
                         var content1 = $"<html><body><form method='POST' target='{base_url}' enctype='multipart/form-data'><input type='file' name='f1' id='f1'/><input type='submit'/></form></body></html>";
