@@ -22,7 +22,7 @@
         }
     </style>
     <script>
-        TARGET_URL = "http://localhost:7071/api/image/";
+        TARGET_URL = "";
         document.addEventListener('DOMContentLoaded', function () {
             // paste
             document.onpaste = function (pasteEvent) {
@@ -66,9 +66,13 @@
         }
 
         function setImageUrl(image_url) {
-            document.getElementById("container").src = image_url;
-            document.getElementById('raw_img_url').value = image_url;
-            document.getElementById('makrdown_img_url').value = '[' + image_url + ']';
+            var url = window.location.href
+            var arr = url.split("/");
+            var prefixed_image_url = arr[0] + "//" + arr[2] + image_url
+
+            document.getElementById("container").src = prefixed_image_url;
+            document.getElementById('raw_img_url').value = prefixed_image_url;
+            document.getElementById('makrdown_img_url').value = '[' + prefixed_image_url + ']';
         }
 
         async function uploadFile(file) {

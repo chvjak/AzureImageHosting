@@ -17,8 +17,7 @@ namespace AzFunctions
     public static class UploadBlobHttpTriggerFunc
     {
         private static readonly string CONTAINER_NAME = "images";
-        // private static readonly object base_url = "/api/image/";
-        private static readonly object base_url = "http://localhost:7071/api/image/"; // DEBUG
+        private static readonly object base_url = "/api/image/";
 
         [FunctionName("UploadBlobHttpTriggerFunc")]
         public static async Task<IActionResult> Run(
@@ -29,19 +28,6 @@ namespace AzFunctions
         {
             try
             {
-                if (null != principal)
-                {
-                    foreach (Claim claim in principal.Claims)
-                    {
-                        log.LogInformation("CLAIM TYPE: " + claim.Type + "; CLAIM VALUE: " + claim.Value); // TODO: check principal corresponds to SC AAD
-                    }
-                    
-                    // seems that this is an overkill, authenticated applications are single-tenant, i.e accessible for users in same tenant
-                    string tenant_id = principal.Claims.Where(x => x.Type == "http://schemas.microsoft.com/identity/claims/tenantid").Select(x => x.Value).FirstOrDefault();
-                    if (tenant_id != "aa81b43f-3969-4fd4-80c9-84c411508d82")
-                        return new ObjectResult("This application is restricted to specfific tenant.");
-                }
-
                 if (req.Method == "GET")
                 {
                     if (image_id is null)
@@ -80,7 +66,6 @@ namespace AzFunctions
                     ContentType = "text/plain",
                 };
 
-                req.HttpContext.Response.Headers["Access-Control-Allow-Origin"] = "*"; //DEBUG
                 return cr;
 
             }
