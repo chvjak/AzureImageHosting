@@ -72,7 +72,7 @@
 
             document.getElementById("container").src = prefixed_image_url;
             document.getElementById('raw_img_url').value = prefixed_image_url;
-            document.getElementById('makrdown_img_url').value = '[' + prefixed_image_url + ']';
+            document.getElementById('makrdown_img_url').value = '![](' + prefixed_image_url + ')';
         }
 
         async function uploadFile(file) {
@@ -97,16 +97,16 @@
     </div>
 
     <p class="centered">-- or --</p>
-    <div class="centered">Choose from your drive <input type='file' name='f1' id='f1' /></div>
+    <p class="centered">Just paste an image from the clipboard</p>
 
     <p class="centered">-- or --</p>
-    <p class="centered">Paste image</p>
+    <div class="centered">Choose from your drive <input type='file' name='f1' id='f1' /></div>
 
     <div class="centered">
         <img id="container" class="centered" /><br>
-        <input type="text" id="raw_img_url" size="50">
+        <input type="text" id="raw_img_url" size="100">
         <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('raw_img_url').value);"><br>
-        <input type="text" id="makrdown_img_url" size="50">
+        <input type="text" id="makrdown_img_url" size="100">
         <input type="button" value="copy" onclick="navigator.clipboard.writeText(document.getElementById('makrdown_img_url').value);"><br>
     </div>
 </body>
