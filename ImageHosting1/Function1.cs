@@ -11,6 +11,7 @@ using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System.Security.Claims;
 using System.Linq;
+using System.Collections.Generic;
 
 namespace AzFunctions
 {
@@ -32,7 +33,8 @@ namespace AzFunctions
                 {
                     if (image_id is null)
                     {
-                        var content1 = File.ReadAllText(@"1.html");
+                        string htmlFilePath = Path.Combine(context.FunctionAppDirectory, "1.html");
+                        var content1 = File.ReadAllText(htmlFilePath);
 
                         var cr1 = new ContentResult()
                         {
@@ -44,8 +46,17 @@ namespace AzFunctions
                     }
                     else if (image_id == "all")
                     {
-                        // list all images?
-                        return new OkResult();
+                        // query image ids, generate html with <img src=[im_id]> for each
+                        List<string> result =(await GetImageIdsAsync(log, context)).Select(x => base_url + x.Split("/").Last()).Select(x => $"<img src='{x}'>").ToList();
+
+
+                        var cr2 = new ContentResult()
+                        {
+                            Content = $"<html><head><style>body{{background-color: #3c424b; color: white;}}</style></head><body><center>{string.Join("<br><br>", result)}</center></body></html>",
+                            ContentType = "text/html",
+                        };
+
+                        return cr2;
                     }
                     else
                     {
@@ -99,6 +110,25 @@ namespace AzFunctions
 
             log.LogInformation($"Bolb {new_image_id} is uploaded to container {container.Name}");
             return new_image_id;
+        }
+
+        private static async Task<IEnumerable<string>> GetImageIdsAsync(ILogger log, ExecutionContext context)
+        {
+            CloudStorageAccount storageAccount1 = GetCloudStorageAccount(log, context);
+            CloudBlobClient blobClient1 = storageAccount1.CreateCloudBlobClient();
+            CloudBlobContainer container1 = blobClient1.GetContainerReference(CONTAINER_NAME);
+
+            BlobContinuationToken continuationToken = null;
+            List<IListBlobItem> results = new List<IListBlobItem>();
+            do
+            {
+                var response = await container1.ListBlobsSegmentedAsync(continuationToken);
+                continuationToken = response.ContinuationToken;
+                results.AddRange(response.Results);
+            }
+            while (continuationToken != null);
+
+            return results.Select(x => x.Uri.ToString());
         }
 
         private static async Task<byte[]> LoadImageAsync(string image_id, ILogger log, ExecutionContext context)
